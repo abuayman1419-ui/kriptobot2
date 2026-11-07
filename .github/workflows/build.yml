@@ -1,0 +1,38 @@
+name: APK
+on:
+  workflow_dispatch:
+  push:
+    paths: ['*.zip']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Zip dosyasını aç
+        run: |
+          ls *.zip
+          unzip -q -o "$(ls *.zip | head -n 1)"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Android SDK lisanslarını kabul et
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null || true
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+      - name: APK derle
+        working-directory: KriptoBotAndroid
+        run: gradle assembleDebug --no-daemon --stacktrace
+      - name: APK'yi Releases sayfasına koy
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp KriptoBotAndroid/app/build/outputs/apk/debug/app-debug.apk KriptoBot.apk
+          gh release create "apk-${{ github.run_number }}" KriptoBot.apk --title "Kripto Bot APK #${{ github.run_number }}" --notes "Telefondan bu sayfadaki KriptoBot.apk dosyasına dokunup indirin ve yükleyin."
